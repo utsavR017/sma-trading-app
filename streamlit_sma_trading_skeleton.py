@@ -63,9 +63,23 @@ def load_data(ticker, start, end):
 
 def compute_indicators(df, short_w, long_w):
     df = df.copy()
-    df['SMA_short'] = df['Adj Close'].rolling(short_w).mean()
-    df['SMA_long']  = df['Adj Close'].rolling(long_w).mean()
+    
+    # Choose correct price column
+    price_col = None
+    for col in ['Adj Close', 'Close', 'close']:
+        if col in df.columns:
+            price_col = col
+            break
+    
+    if price_col is None:
+        st.error("❌ No valid price column found in the dataset (expected 'Adj Close' or 'Close').")
+        return pd.DataFrame()
+    
+    df['SMA_short'] = df[price_col].rolling(short_w).mean()
+    df['SMA_long']  = df[price_col].rolling(long_w).mean()
+    df['price_col_used'] = price_col
     return df
+
 
 
 def generate_signals(df):
