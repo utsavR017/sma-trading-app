@@ -36,12 +36,29 @@ with st.sidebar.form(key='controls'):
 # ---------------------- Helper functions ----------------------
 @st.cache_data(ttl=60*60)
 def load_data(ticker, start, end):
-    df = yf.download(ticker, start=start, end=end, progress=False)
-    if df.empty:
+    try:
+        df = yf.download(ticker, start=start, end=end, progress=False)
+        if df is None or df.empty:
+            st.warning("⚠️ No data found for this ticker or date range. Try another ticker like 'AAPL' or 'TSLA'.")
+            return pd.DataFrame()
+        
+        # Flatten multi-index (some tickers return multi-column data)
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+        
+        # Ensure required columns exist
+        for col in ['Open','High','Low','Close','Adj Close','Volume']:
+            if col not in df.columns:
+                st.warning(f"Column '{col}' missing in data. Showing available columns only.")
+        
+        df = df.reindex(columns=[c for c in ['Open','High','Low','Close','Adj Close','Volume'] if c in df.columns])
+        df = df.dropna()
         return df
-    df = df[['Open','High','Low','Close','Adj Close','Volume']]
-    df = df.dropna()
-    return df
+    
+    except Exception as e:
+        st.error(f"❌ Error fetching data: {e}")
+        return pd.DataFrame()
+
 
 
 def compute_indicators(df, short_w, long_w):
