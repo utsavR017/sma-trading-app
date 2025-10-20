@@ -59,27 +59,26 @@ def load_data(ticker, start, end):
         st.error(f"❌ Error fetching data: {e}")
         return pd.DataFrame()
 
+# Determine which column to use for prices
+def get_price_column(df):
+    for col in ['Adj Close', 'Close', 'close']:
+        if col in df.columns:
+            return col
+    return None
 
 
 def compute_indicators(df, short_w, long_w):
     df = df.copy()
-    
-    # Choose correct price column
-    price_col = None
-    for col in ['Adj Close', 'Close', 'close']:
-        if col in df.columns:
-            price_col = col
-            break
+    price_col = get_price_column(df)
     
     if price_col is None:
-        st.error("❌ No valid price column found in the dataset (expected 'Adj Close' or 'Close').")
+        st.error("❌ No valid price column found ('Adj Close' or 'Close'). Cannot compute SMA.")
         return pd.DataFrame()
     
     df['SMA_short'] = df[price_col].rolling(short_w).mean()
     df['SMA_long']  = df[price_col].rolling(long_w).mean()
-    df['price_col_used'] = price_col
+    df['price_col_used'] = price_col  # store which column we used
     return df
-
 
 
 def generate_signals(df):
@@ -92,7 +91,13 @@ def generate_signals(df):
 
 def backtest(df, init_cash, trade_cost):
     df = df.copy()
-    df['market_ret'] = df['Adj Close'].pct_change().fillna(0)
+    
+    price_col = get_price_column(df)
+    if price_col is None:
+        st.error("❌ No valid price column found for backtesting.")
+        return pd.DataFrame()
+    
+    df['market_ret'] = df[price_col].pct_change().fillna(0)
     df['strategy_ret'] = df['position'] * df['market_ret']
     df['trade'] = df['position'].diff().abs().fillna(0)
     df['strategy_ret_net'] = df['strategy_ret'] - df['trade'] * trade_cost
