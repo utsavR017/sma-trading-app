@@ -1,0 +1,1 @@
+# sma-trading-app
